@@ -1,0 +1,6 @@
+gspread>=6.1
+google-auth>=2.30
+yfinance>=0.2.50
+requests>=2.32
+pandas>=2.2
+PyYAML>=6.0
