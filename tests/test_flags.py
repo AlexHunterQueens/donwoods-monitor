@@ -23,6 +23,7 @@ def metrics(w1=0.0, vs=0.0, last=100.0, hi=150.0, lo=50.0):
 def result(status="Idea", **kw):
     n = Name(sector="E&U", company="Suncor", ticker="SU", exchange="TSX / NYSE", status=status,
              listing=map_listing("SU", "TSX / NYSE"))
+    kw.setdefault("bench_name", "TSX")
     return Result(name=n, **kw)
 
 
@@ -147,6 +148,7 @@ def test_build_run_end_to_end(cfg, fake_rows):
     flat = frame([100.0] * 306)
     hist = {
         "^GSPTSE": frame([1000.0] * 305 + [1020]),
+        "^GSPC": frame([1000.0] * 305 + [990]),
         "SU.TO": frame([100.0] * 305 + [94]),
         "CCO.TO": frame([100.0] * 306),
         "AAPL": flat,
@@ -170,10 +172,13 @@ def test_build_run_end_to_end(cfg, fake_rows):
     assert kinds(by["CCO"].flags)[:2] == [REPORT_OWED, FILING]     # In progress plus a 6-K
     assert by["TOU"].filings_note == "check SEDAR+ manually"
     assert EARNINGS in kinds(by["AAPL"].flags)                      # yfinance date, 6 days out
+    # US names are measured against the S&P 500, Canadian names against the TSX
+    assert by["AAPL"].bench_name == "S&P 500" and by["AAPL"].metrics.w1_vs_bench_pp == pytest.approx(1.0)
+    assert by["SU"].bench_name == "TSX"
 
     rows = M.sector_rows(run, "E&U")
     assert len(rows) == 3 and len(rows[0]) == len(M.SECTOR_HEADERS)
-    assert rows[2][12] == "check SEDAR+ manually"
+    assert rows[2][M.SECTOR_HEADERS.index("New filings (7d)")] == "check SEDAR+ manually"
 
     summ = M.summary_rows(run)
     assert [r[2] for r in summ][:2] == ["CCO", "SU"]   # E&U first, Report owed outranks Big move

@@ -14,7 +14,7 @@ from .flags import Earnings, Result, days_to, earnings_text, evaluate, fmt_day
 log = logging.getLogger(__name__)
 
 SECTOR_MARKER = "Coverage Monitor sector tab"
-SECTOR_HEADERS = ["Company", "Ticker", "Status", "Last price", "1W %", "1W vs TSX (pp)", "1M %",
+SECTOR_HEADERS = ["Company", "Ticker", "Status", "Last price", "1W %", "1W vs index (pp)", "Index", "1M %",
                   "52W high", "52W low", "% from 52W high", "Next earnings", "Days to earnings",
                   "New filings (7d)", "Flags", "Yahoo symbol"]
 SUMMARY_HEADERS = ["Sector", "Company", "Ticker", "Flag", "Detail", "Analysts"]
@@ -31,8 +31,7 @@ class Run:
     results: list[Result]
     asof: date | None
     sectors: list[str]
-    bench_symbol: str
-    bench_name: str
+    benchmarks: dict
     edgar_ok: bool
     lookback_days: int
     problems: list[tuple[str, str, str, str]] = field(default_factory=list)
@@ -51,8 +50,8 @@ def build_run(names: list[Name], cfg: dict, today: date, run_at: datetime, *,
               edgar_error: str = "") -> Run:
     from .prices import compute_metrics
 
-    bench_sym = cfg["benchmark"]["ticker"]
-    bench_name = cfg["benchmark"].get("name", "TSX")
+    benches = cfg["benchmarks"]
+    bench_syms = [b["ticker"] for b in benches.values()]
     lookback = cfg["flags"]["new_filing"]["lookback_days"]
 
     sectors: list[str] = []
@@ -61,14 +60,15 @@ def build_run(names: list[Name], cfg: dict, today: date, run_at: datetime, *,
             sectors.append(n.sector)
 
     symbols = [n.listing.primary for n in names if n.listing]
-    hist = fetch_history(symbols + [bench_sym]) if symbols else {}
-    bench = hist.get(bench_sym)
+    hist = fetch_history(symbols + bench_syms) if symbols else {}
 
     problems: list[tuple[str, str, str, str]] = []
-    if bench is None:
-        problems.append(("", cfg["benchmark"].get("name", ""), bench_sym,
-                         "no benchmark data, 1W vs TSX left blank"))
-    asof = bench.index[-1].date() if bench is not None else None
+    for b in benches.values():
+        if b["ticker"] not in hist:
+            problems.append(("", b.get("full_name", b["name"]), b["ticker"],
+                             f"no index data, 1W vs {b['name']} left blank"))
+    first = hist.get(next(iter(benches.values()))["ticker"])
+    asof = first.index[-1].date() if first is not None else None
 
     results: list[Result] = []
     for n in names:
@@ -76,6 +76,9 @@ def build_run(names: list[Name], cfg: dict, today: date, run_at: datetime, *,
         for p in n.problems:
             problems.append((n.sector, n.company, n.ticker, p))
         if n.listing:
+            b = benches.get(n.listing.currency)
+            r.bench_name = b["name"] if b else ""
+            bench = hist.get(b["ticker"]) if b else None
             h = hist.get(n.listing.primary)
             r.metrics = compute_metrics(h, bench) if h is not None else None
             if r.metrics is None:
@@ -107,7 +110,7 @@ def build_run(names: list[Name], cfg: dict, today: date, run_at: datetime, *,
                 except Exception as e:  # keep going, report it
                     r.filings_note = "EDGAR error"
                     problems.append((n.sector, n.company, n.ticker, f"EDGAR lookup failed: {e}"))
-        r.flags = evaluate(r, today, cfg, bench_name)
+        r.flags = evaluate(r, today, cfg)
         results.append(r)
 
     if asof is None:
@@ -122,7 +125,7 @@ def build_run(names: list[Name], cfg: dict, today: date, run_at: datetime, *,
         problems.append(("", "", "", f"EDGAR skipped: {edgar_error}"))
 
     return Run(today=today, run_at=run_at, results=results, asof=asof, sectors=sectors,
-               bench_symbol=bench_sym, bench_name=bench_name, edgar_ok=edgar is not None,
+               benchmarks=benches, edgar_ok=edgar is not None,
                lookback_days=lookback, problems=problems)
 
 
@@ -138,7 +141,8 @@ def source_line(run: Run, marker: str = "") -> str:
     parts = [p for p in [
         marker,
         f"Prices: Yahoo Finance via yfinance, {asof}, unadjusted, listing currency (CAD for TSX, USD for US)",
-        f"Benchmark: S&P/TSX Composite ({run.bench_symbol}) over the same week",
+        "1W vs index: " + ", ".join(f"{k} listings vs {b.get('full_name', b['name'])} ({b['ticker']})"
+                                    for k, b in run.benchmarks.items()) + ", same week",
         "Earnings: yfinance, falls back to coverage list (marked unconfirmed)",
         (f"Filings: SEC EDGAR, {fmt_day(since)} to {fmt_day(run.today)} {run.today:%Y}"
          if run.edgar_ok else "Filings: EDGAR not checked this run"),
@@ -164,7 +168,7 @@ def sector_rows(run: Run, sector: str) -> list[list]:
         rows.append([
             r.name.company, r.name.ticker, r.name.status,
             _r(m and m.last_price, 2), _r(m and m.w1_pct, 1), _r(m and m.w1_vs_bench_pp, 1),
-            _r(m and m.m1_pct, 1), _r(m and m.high_52w, 2), _r(m and m.low_52w, 2),
+            r.bench_name, _r(m and m.m1_pct, 1), _r(m and m.high_52w, 2), _r(m and m.low_52w, 2),
             _r(m and m.pct_from_high, 1),
             earnings_text(r.earnings) if r.earnings else "",
             "" if (d := days_to(r.earnings, run.today)) is None or d < 0 else d,

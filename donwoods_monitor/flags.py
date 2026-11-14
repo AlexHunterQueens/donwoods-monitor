@@ -43,6 +43,7 @@ class Result:
     earnings: Earnings | None = None
     filings: list[Filing] | None = None   # None means not checked on EDGAR
     filings_note: str = ""                # e.g. "check SEDAR+ manually"
+    bench_name: str = ""                  # index the weekly move is compared with
     flags: list[Flag] = field(default_factory=list)
 
     @property
@@ -70,7 +71,8 @@ def days_to(e: Earnings | None, today: date) -> int | None:
     return (e.when - today).days
 
 
-def evaluate(r: Result, today: date, cfg: dict, bench_name: str = "TSX") -> list[Flag]:
+def evaluate(r: Result, today: date, cfg: dict, bench_name: str | None = None) -> list[Flag]:
+    bench_name = bench_name or r.bench_name or "index"
     fc = cfg["flags"]
     flags: list[Flag] = []
     m = r.metrics

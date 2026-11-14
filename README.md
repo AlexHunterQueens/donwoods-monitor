@@ -12,7 +12,7 @@ All thresholds live in `config.yaml`.
 
 | Flag | Rule |
 |---|---|
-| Big move | Weekly move of 5% or more either way, or 3 pp or more vs the TSX Composite (^GSPTSE) over the same week |
+| Big move | Weekly move of 5% or more either way, or 3 pp or more vs its index (TSX for TSX listings, S&P 500 for US listings) over the same week |
 | Earnings soon | Earnings in the next 14 days. Uses the yfinance date. If that is missing, uses the list's Next earnings column, marked "from list, unconfirmed" |
 | New filing | 8-K, 10-Q, 10-K, 6-K or 40-F on EDGAR in the last 7 days (amendments count) |
 | 52W extreme | Within 2% of the 52 week high or low |
@@ -24,7 +24,7 @@ All thresholds live in `config.yaml`.
 * **1M:** the same, but one calendar month back.
 * **52W high and low:** daily highs and lows over the last 365 days, which matches Yahoo's range.
 * **Prices:** unadjusted closes in the listing currency, CAD for TSX and USD for US.
-* US names are compared with the TSX as briefed, so currency moves sit inside that gap.
+* Each name is compared with its own market: TSX listings vs the S&P/TSX Composite (^GSPTSE), US listings vs the S&P 500 (^GSPC). The Index column says which.
 
 ## Change a threshold
 
@@ -83,7 +83,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=~/.config/donwoods/sa.json
 ```
 
 ```bash
-export EDGAR_CONTACT_EMAIL=you@queensu.ca
+export EDGAR_CONTACT_EMAIL=alex.hunter@queensu.ca   # optional, config.yaml already has it
 ```
 
 Dry run (prints everything, writes nothing):
@@ -108,7 +108,7 @@ python -m donwoods_monitor
 
 1. In the repo, go to Settings, then Secrets and variables, then Actions. Add three secrets:
    * `GCP_SA_KEY`: the whole contents of the JSON key file
-   * `EDGAR_CONTACT_EMAIL`
+   * `EDGAR_CONTACT_EMAIL` (optional: config.yaml already has it)
    * `MONITOR_SHEET_ID`
 2. Merge to `main`. GitHub only runs schedules from the default branch.
 3. To run it by hand: Actions, then Coverage Monitor, then Run workflow. Tick "Dry run" to print without writing.

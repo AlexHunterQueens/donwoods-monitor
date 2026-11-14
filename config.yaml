@@ -10,14 +10,17 @@ sheets:
   # share it with the service account as Editor, paste its ID here.
   monitor_sheet_id: ""
 
-benchmark:
-  ticker: "^GSPTSE"
-  name: "TSX"
+# Weekly moves are compared with the index of the listing's own market and currency:
+# TSX listings vs the TSX Composite, US listings vs the S&P 500.
+# The first entry also sets the as of date for the run.
+benchmarks:
+  CAD: {ticker: "^GSPTSE", name: "TSX", full_name: "S&P/TSX Composite"}
+  USD: {ticker: "^GSPC", name: "S&P 500", full_name: "S&P 500"}
 
 flags:
   big_move:
     weekly_pct: 5.0          # absolute weekly move, either way
-    vs_benchmark_pp: 3.0     # weekly move versus the TSX, percentage points
+    vs_benchmark_pp: 3.0     # weekly move versus its index, percentage points
   earnings_soon:
     days: 14
   new_filing:
@@ -33,7 +36,7 @@ flags:
 edgar:
   # SEC requires a real contact email in the User-Agent.
   # Set it here or with the EDGAR_CONTACT_EMAIL environment variable.
-  contact_email: ""
+  contact_email: "alex.hunter@queensu.ca"
   org_name: "Donwoods Capital"
 
 # Odd tickers. Keyed by the Ticker value in the coverage list.
