@@ -1,0 +1,52 @@
+# Donwoods Capital Coverage Monitor settings.
+# Change thresholds here. No code change needed.
+
+sheets:
+  # Team coverage list. READ ONLY. The tool never writes to it.
+  coverage_sheet_id: 14VZGi_mCDQVUfPEufZRQyzPFoLDqvi_vNO-GISEkklE
+  # Tab to read. Leave blank to read the first tab.
+  coverage_tab: ""
+  # Monitor sheet the tool writes to. Create it by hand in the Drive folder,
+  # share it with the service account as Editor, paste its ID here.
+  monitor_sheet_id: ""
+
+benchmark:
+  ticker: "^GSPTSE"
+  name: "TSX"
+
+flags:
+  big_move:
+    weekly_pct: 5.0          # absolute weekly move, either way
+    vs_benchmark_pp: 3.0     # weekly move versus the TSX, percentage points
+  earnings_soon:
+    days: 14
+  new_filing:
+    lookback_days: 7
+    forms: ["8-K", "10-Q", "10-K", "6-K", "40-F"]
+    include_amendments: true # count 8-K/A, 10-Q/A and so on
+  extreme_52w:
+    within_pct: 2.0
+  report_owed:
+    statuses: ["In progress"]  # case insensitive
+    triggers: ["Big move", "New filing"]
+
+edgar:
+  # SEC requires a real contact email in the User-Agent.
+  # Set it here or with the EDGAR_CONTACT_EMAIL environment variable.
+  contact_email: ""
+  org_name: "Donwoods Capital"
+
+# Odd tickers. Keyed by the Ticker value in the coverage list.
+# primary: Yahoo Finance symbol to price. us: US ticker for EDGAR (blank for none).
+ticker_overrides: {}
+  # Example:
+  # RCI.B: {primary: "RCI-B.TO", us: "RCI"}
+
+# Header names the tool looks for in the coverage list (case insensitive).
+columns:
+  required: ["Sector", "Company", "Ticker", "Exchange"]
+  optional: ["Analysts", "Status", "Next earnings"]
+
+schedule:
+  timezone: "America/Toronto"
+  hour: 8
